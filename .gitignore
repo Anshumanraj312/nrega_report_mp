@@ -1,0 +1,20 @@
+# Ignore everything
+*
+
+# But include these specific files
+!area_officer_inspection.py
+!avg_persondays.py
+!category_employment.py
+!fra_beneficiaries.py
+!generate_comprehensive_report.py
+!geotag_pending_works.py
+!labor_engagement.py
+!labour_material_ratio.py
+!nmms_usage.py
+!women_mate_engagement.py
+!work_management.py
+!zero_muster.py
+!.env.example
+!.gitignore
+!README.md
+!requirements.txt
