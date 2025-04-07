@@ -525,7 +525,7 @@ def generate_detailed_analysis(district, date, output_format="text"):
 
 def generate_html_report(performance_summary, detailed_analysis, district, date):
     """
-    Generate a comprehensive HTML report using the Claude API with streaming to handle long requests
+    Generate a concise HTML report using the Claude API with streaming to handle long requests
     
     Args:
         performance_summary (dict): Performance summary data
@@ -542,37 +542,27 @@ def generate_html_report(performance_summary, detailed_analysis, district, date)
         logger.error(error_msg)
         raise ValueError(error_msg)
 
-    # Create the prompt for Claude - optimized for design and PDF compatibility
+    # Convert data to JSON strings for prompt
+    performance_summary_json = json.dumps(performance_summary, indent=2)
+    detailed_analysis_json = json.dumps(detailed_analysis, indent=2)
+    current_time = datetime.now().strftime('%B %d, %Y at %H:%M:%S')
+
+    # Create the prompt for Claude - optimized for concise design with enhanced UI elements
     prompt = f"""
-You are an expert data analyst and report designer for the National Rural Employment Guarantee Scheme (NREGS) in Madhya Pradesh, India.
-The Data you are getting is a summary from many individual reports and you have to make sense of it to paint a complete picture of the district. The suggestions and analysis you are going to make will impact
-millions of life, so your analysis should be crisp and to the point. you need to think on each of these and provide analysis of the district and its block, let me tell you all individual report summaries i am giving and what we are aiming for
+You are an expert data analyst and report designer for NREGS MP, skilled at creating concise yet insightful reports.
+The data provided is a summary. Your task is to create a **highly focused and concise** HTML report (targeting **2-3 A2 pages**) for {district} district based on data from {date}. Prioritize relevance and actionable insights over exhaustive detail. The recommendations section, however, should remain comprehensive.
 
-        "labor_engagement" - ideally should be above state average
-        "person_days" - ideally should be above state average
-        "category_employment" - SC, ST and women should be employed in maximum quantity
-        "work_management" - for older works it should be above 90% while for rest above state average
-        "area_officer_inspection" - minimum 10 for both DPC and ADPC
-        "nmms_usage" - 100% is ideal
-        "geotag_pending_works" - above state average
-        "labour_material_ratio" - ideally between 35-40 percent, lower ratio denotes pendancy in bill payment and higher denotes skewed priority towards material intensive work.
-        "women_mate_engagement" - ideally above 50%
-        "timely_payment" - 100%
-        "zero_muster" - lesser the better
-        "fra_beneficiaries" - above state average
-        "disabled workers" - ideally above 2%
-
-Create a comprehensive, visually appealing HTML report for {district} district based on data from {date} that follows the design specification below.
+**Goal:** Generate a visually appealing report using the specified A2 layout and design template, but keep the content streamlined to fit the target length. Summarize effectively and avoid lengthy descriptions unless highlighting critical issues or successes.
 
 <performance_summary>
-{json.dumps(performance_summary, indent=2)}
+{performance_summary_json}
 </performance_summary>
 
 <detailed_analysis>
-{json.dumps(detailed_analysis, indent=2)}
+{detailed_analysis_json}
 </detailed_analysis>
 
-Follow this specific design pattern for optimal A2 PDF conversion and modern reactive styling:
+**Adhere strictly to this design pattern and A2 PDF optimization guidelines:**
 
 1. Use a professional blue color scheme with:
    - Primary color: #0056a6 (deep blue)
@@ -591,267 +581,76 @@ Follow this specific design pattern for optimal A2 PDF conversion and modern rea
    - Report date clearly shown
    - NREGS MP title with proper styling
    - Use flexbox for header alignment with space-between justification
-   - Header height should be fixed at exactly 180px
+   - Header height should be fixed at exactly 150px to save space
    - Important: Add page-break-after: avoid to the header to prevent empty first page
 
-3. For the Component Contribution section, implement a Score Table with Color Indicators :
+3. For the Component Contribution section, implement a Score Table with enhanced Performance Capsules:
    - Create a professional table with the following columns:
      * Component Name (left-aligned)
      * Score (showing X.XX / XX format)
-     * % of Total (showing percentage contribution to total score)
-     * Performance (color-coded indicator)
-   - Apply this color coding for the Performance column indicators:
-     * Blue gradient (#0056a6 to #2D8CC0): High performance (7.5+ marks)
-     * Green gradient (#28a745 to #5cb85c): Above average (3.5-7.5 marks)
-     * Yellow gradient (#ffc107 to #ffdb58): Average (1.5-3.5 marks)
-     * Orange gradient (#fd7e14 to #ff9800): Below average (0.1-1.5 marks)
-     * Red gradient (#dc3545 to #ff6b6b): Critical (0 marks)
-   - Set appropriate text color for each indicator (white for blue, green, orange, and red; dark for yellow)
+     * Top District (in that category)
+     * Rank (in that category)
+     * Performance (modern capsule-style indicators)
+   - Apply this modern design for the Performance capsules:
+     * High: Linear gradient from #0056a6 to #2D8CC0 with subtle glow effect
+     * Above Avg: Linear gradient from #28a745 to #5cb85c with subtle glow effect
+     * Average: Linear gradient from #ffc107 to #ffdb58
+     * Below Avg: Linear gradient from #fd7e14 to #ff9800
+     * Critical: Linear gradient from #dc3545 to #ff6b6b
+   - Add subtle icons to capsules for better visual cues:
+     * High: ↑ or ★
+     * Above Avg: ↗
+     * Average: →
+     * Below Avg: ↘
+     * Critical: ↓ or ⚠
+   - Use appropriate text color for each capsule
+   - Add a subtle shadow effect to make capsules appear slightly raised
    - Use proper table styling with:
-     * Bordered cells
+     * Thin bordered cells
      * Blue header with white text
      * Alternate row shading (#f9f9f9 for even rows)
-     * Rounded corners for the table container
-     * Adequate cell padding (16px 20px)
+     * Rounded corners (8px) for the table container
+     * Compact cell padding (12px 16px) to save space
    - Sort components by score in descending order
-   - Include a legend below the table showing what each color means
-   
-   Example structure:
-   ```html
-   <div class="card keep-together">
-     <h3>Component Contribution to Total Score</h3>
-     <div class="overflow-x-auto">
-       <table class="min-w-full bg-white border border-gray-200">
-         <thead class="bg-primary text-white">
-           <tr>
-             <th class="py-3 px-4 text-left">Component</th>
-             <th class="py-3 px-4 text-left">Score</th>
-             <th class="py-3 px-4 text-left">% of Total</th>
-             <th class="py-3 px-4 text-left">Performance</th>
-           </tr>
-         </thead>
-         <tbody>
-           <!-- For each component, replace COMPONENT_NAME, SCORE, MAX_SCORE, PERCENTAGE, CATEGORY_COLOR, CATEGORY_TEXT_COLOR, and CATEGORY_NAME with actual values -->
-           <tr class="bg-white">
-             <td class="py-3 px-4 border-b border-gray-200 font-medium">COMPONENT_NAME</td>
-             <td class="py-3 px-4 border-b border-gray-200">SCORE / MAX_SCORE</td>
-             <td class="py-3 px-4 border-b border-gray-200">PERCENTAGE%</td>
-             <td class="py-3 px-4 border-b border-gray-200">
-               <span 
-                 class="inline-block px-2 py-1 rounded text-sm"
-                 style="background-color: CATEGORY_COLOR; color: CATEGORY_TEXT_COLOR"
-               >
-                 CATEGORY_NAME
-               </span>
-             </td>
-           </tr>
-           <!-- Repeat for all components -->
-         </tbody>
-       </table>
-     </div>
-     
-     <div class="color-legend mt-4 flex flex-wrap gap-4 justify-center">
-       <!-- Add all color indicators with appropriate colors -->
-       <div class="legend-item flex items-center">
-         <div class="color-box w-5 h-5 rounded mr-2" style="background: linear-gradient(135deg, #0056a6 0%, #2D8CC0 100%);"></div>
-         <span>High (7.5+ marks)</span>
-       </div>
-       <!-- Add other legend items -->
-     </div>
-   </div>
-   ```
-4. For Block-wise Performance, create a table with state average comparison:
-<!-- Block Comparison Table -->
-<div class="card keep-together">
-  <h3>Block Performance Comparison</h3>
-  <div class="overflow-x-auto">
-    <table class="w-full border-collapse">
-      <thead class="bg-primary text-white">
-        <tr>
-          <th class="p-4 text-left border">Block</th>
-          <th class="p-4 text-left border">Score</th>
-          <th class="p-4 text-center border">Grade</th>
-          <th class="p-4 text-left border">vs State Avg</th>
-          <th class="p-4 text-left border">Performance</th>
-        </tr>
-      </thead>
-      <tbody>
-        {{#each performance_summary.selectedDistrict.blockDetails}}
-        <tr>
-          <td class="p-4 border font-medium">{{name}}</td>
-          <td class="p-4 border">{{marks}}</td>
-          <td class="p-4 border text-center">
-            <div class="grade-badge grade-{{grade}}-gradient">{{grade}}</div>
-          </td>
-          <td class="p-4 border {{comparedToStateAverage.isAbove ? 'text-success' : 'text-danger'}}">
-            {{comparedToStateAverage.isAbove ? '+' : ''}}{{comparedToStateAverage.difference}}
-          </td>
-          <td class="p-4 border">
-            <span style="display: inline-block; padding: 5px 10px; border-radius: 5px; 
-              background: {{#if (gt comparedToStateAverage.difference 10)}}
-                linear-gradient(135deg, #0056a6 0%, #2D8CC0 100%)
-              {{else if (gt comparedToStateAverage.difference 2)}}
-                linear-gradient(135deg, #28a745 0%, #5cb85c 100%)
-              {{else if (gt comparedToStateAverage.difference -2)}}
-                linear-gradient(135deg, #ffc107 0%, #ffdb58 100%)
-              {{else if (gt comparedToStateAverage.difference -10)}}
-                linear-gradient(135deg, #fd7e14 0%, #ff9800 100%)
-              {{else}}
-                linear-gradient(135deg, #dc3545 0%, #ff6b6b 100%)
-              {{/if}}; 
-              color: {{#if (gt comparedToStateAverage.difference -2) and (lt comparedToStateAverage.difference 2)}}
-                black
-              {{else}}
-                white
-              {{/if}};">
-              {{#if (gt comparedToStateAverage.difference 10)}}
-                High
-              {{else if (gt comparedToStateAverage.difference 2)}}
-                Above Average
-              {{else if (gt comparedToStateAverage.difference -2)}}
-                Average
-              {{else if (gt comparedToStateAverage.difference -10)}}
-                Below Average
-              {{else}}
-                Critical
-              {{/if}}
-            </span>
-          </td>
-        </tr>
-        {{/each}}
-      </tbody>
-    </table>
-    <div class="text-right mt-2">
-      <span class="inline-block px-2 py-1 bg-yellow-400 rounded text-sm font-bold">
-        State Average: {{{performance_summary['metadata']['stateAverage']}}}
-      </span>
-    </div>
-  </div>
-</div>
+   - Include a compact legend below the table
 
-<!-- Use these grade colors:
-   - A: #28a745 (green)
-   - B: #17a2b8 (blue)
-   - C: #ffc107 (yellow, use black text)
-   - D: #dc3545 (red)
-   
-   For the new columns, calculate these values:
-   - [DIFFERENCE]: Format as "+X.XX" if block score is above state average, or "-X.XX" if below
-   - [DIFFERENCE_CLASS]: "text-success" if block score is above state average, or "text-danger" if below
-   - [PERFORMANCE_CATEGORY]: Based on the difference from state average:
-     * "High" if 10+ points above state average
-     * "Above Average" if 2-10 points above state average
-     * "Average" if within ±2 points of state average
-     * "Below Average" if 2-10 points below state average
-     * "Critical" if 10+ points below state average
-   - [PERFORMANCE_GRADIENT]: Color gradient based on performance category:
-     * High: linear-gradient(135deg, #0056a6 0%, #2D8CC0 100%)
-     * Above Average: linear-gradient(135deg, #28a745 0%, #5cb85c 100%)
-     * Average: linear-gradient(135deg, #ffc107 0%, #ffdb58 100%)
-     * Below Average: linear-gradient(135deg, #fd7e14 0%, #ff9800 100%)
-     * Critical: linear-gradient(135deg, #dc3545 0%, #ff6b6b 100%)
-   - [PERFORMANCE_TEXT_COLOR]: "white" for all except "Average" which should be "black"
--->
+4. For Block-wise Performance, create a space-efficient table:
+   - Use the same enhanced capsule styling for performance levels
+   - Include columns for Block, Score, Grade, vs State Avg, and Performance
+   - Design grade badges with modern styling:
+     * A: Linear gradient from #34c759 to #28a745
+     * B: Linear gradient from #30b0c7 to #17a2b8
+     * C: Linear gradient from #ffcc00 to #ffc107
+     * D: Linear gradient from #ff3b30 to #dc3545
+   - Use subtle hover effects for table rows
+   - Implement compact row heights with adequate text spacing
 
 5. For tables and data presentation:
    - Use CSS Grid for all layout components
-   - For top/bottom districts comparison, place tables in a perfect 2-column grid using grid-template-columns: 1fr 1fr
-   - Ensure both tables in the district comparison row have equal height and width
-   - Create a 40px gap between grid columns using the gap property
-   - Use responsive tables with alternate row shading (#f9f9f9 for even rows)
-   - Include proper spacing between columns and rows (padding: 16px 20px)
-   - Use thin borders (#ddd) for separation
+   - Create responsive tables with subtle alternate row shading
+   - Reduce spacing between columns and rows for compactness
+   - Use thin borders (#ddd) for subtle separation
    - Add sticky headers with position: sticky for longer tables
    - Ensure tables have proper vertical alignment and text alignment
-   - Set minimum font size of 14pt for all table content to ensure readability on A2 paper
-   - Table headings should be at least 16pt
+   - Set minimum font size of 14pt for all table content
    - Wrap table containers in a div with class="keep-together" to prevent table breaks
-   - Use border: 1px solid #e0e0e0 for table containers instead of box-shadow
+   - Use border: 1px solid #e0e0e0 for table containers
 
 6. For section organization:
-   - Create clear visual separation between major sections using white cards with subtle borders (1px solid #e0e0e0) on a light gray background
-   - Use consistent heading styles with bottom borders for section titles
-   - Add page break hints for PDF rendering with the page-break-before property
-   - Place best and worst performing block cards in a 2-column grid layout with equal widths
-   - Use grid-template-columns: 1fr 1fr for the block comparison section
-   - Ensure block comparison cards have identical heights with aligned elements
-   - Use contrasting colors (#17a2b8 for best, #dc3545 for worst) to differentiate performance
-   - Ensure sections have adequate padding (at least 40px) to prevent cramped appearance on A2
-   - IMPORTANT: Place explicit page breaks BETWEEN sections, not at the beginning of them, like this:
-     <!-- End of Executive Summary -->
-     <div class="page-break"></div>
-     <!-- Start of Component-wise Performance Section -->
+   - Optimize vertical spacing between sections to minimize empty space
+   - Use subtle section dividers instead of excessive padding
+   - Ensure content flows efficiently across the page
+   - Use consistent heading styles with minimal vertical space consumption
+   - IMPORTANT: Use minimal page breaks - only between major sections when absolutely necessary
 
-7. For Block Analysis reports:
-   - Place ALL Block Analysis reports in a 2-column grid layout using grid-template-columns: repeat(2, 1fr)
-   - Each row should contain exactly 2 block analysis cards of equal height
-   - Set fixed height for block analysis cards: min-height: 550px to ensure two fit perfectly on an A2 page
-   - Maintain consistent padding (30px) and spacing between all block analysis cards
-   - Use a left border accent (8px) in different colors to indicate performance level
-   - Use border: 1px solid #e0e0e0 instead of box-shadow for clean floating design
-   - IMPORTANT: Arrange block analysis cards in logical groups of 2 and place page breaks between them:
-     
-     <!-- First two blocks -->
-     <div class="keep-together grid-2col">
-       <!-- First two block analysis cards go here -->
-     </div>
-     
-     <!-- Page break between block groups -->
-     <div class="page-break"></div>
-     
-     <!-- Next two blocks -->
-     <div class="keep-together grid-2col">
-       <!-- Next two block analysis cards go here -->
-     </div>
-     
-   - For the SWOT analysis in each block:
-     * Focus on UNIQUE characteristics for each block rather than common elements
-     * Highlight distinctive strengths and weaknesses that differentiate this block from others
-     * Avoid redundancy between block analyses by emphasizing particular aspects:
-       - For top-performing blocks: Focus on exceptional metrics and transferable practices
-       - For middle-performing blocks: Highlight unique opportunities and specific challenges
-       - For low-performing blocks: Emphasize critical intervention areas and unique threats
-     * Use specific data points and percentages to support observations
-     * Limit each SWOT category to 4-5 high-impact, distinctive points
-   - Ensure all blocks maintain balanced analysis depth despite performance differences
-   - Set SWOT container to min-height: 350px to ensure it stays together on page
-
-8. For Panchayat Performance tables:
-   - For each block, place heading as a single full-width element
-   - Below each heading, place top 5 and bottom 5 panchayat tables side-by-side in ONE ROW using grid layout
-   - Use grid-template-columns: 1fr 1fr for the tables row with 40px gap
-   - Ensure both tables have equal width and aligned headers
-   - Add key insights below both tables as a full-width element
-   - Maintain consistent styling across all blocks' panchayat tables
-   - Use border: 1px solid #e0e0e0 and border-radius: 12px instead of box-shadow
-   - Scale table width to at least 45% of available width each (90% total)
-   - IMPORTANT: Keep each block's panchayat section together as a unit:
-   
-     <div class="keep-together">
-       <h3 class="panchayat-block-title">BLOCK NAME</h3>
-       <div class="panchayat-tables">
-         <!-- tables go here -->
-       </div>
-       <div class="panchayat-insights">
-         <!-- insights go here -->
-       </div>
-     </div>
-     
-   - Add page breaks between block panchayat sections if they don't fit on current page:
-   
-     <!-- After each block's panchayat section, if needed -->
-     <div class="page-break"></div>
-   - IMPORTANT: Ensure that all blocks are covered and nothing missed
-
-9. For specific A2 PDF optimization and clean floating design:
+7. For specific A2 PDF optimization and clean floating design:
    - Use CSS @page rules for proper A2 page sizing with appropriate margins:
    
+   ```css
    @page {{
      size: A2 portrait;
      margin: 15mm;
    }}
-   
-   - Define exact A2 dimensions in print media queries with enhanced page break control:
    
    @media print {{
      html, body, div, span, applet, object, iframe, h1, h2, h3, h4, h5, h6 {{ 
@@ -864,20 +663,15 @@ Follow this specific design pattern for optimal A2 PDF conversion and modern rea
        height: 594mm; /* A2 height */
        margin: 0;
        padding: 0;
+       font-size: 14pt; /* Base font size for A2 */
      }}
      .container {{
        max-width: none;
        width: 100%;
      }}
      /* Critical: Don't let these elements split across pages */
-     .block-analysis-card, 
-     .component-card, 
-     .swot-container,
-     .swot-box, 
-     .recommendation-card,
-     .treemap-item, 
-     .chart-container, 
-     table {{ 
+     .card, .kpi-card, .block-card, .component-card, .swot-container, .swot-box,
+     .recommendation-card, .treemap-item, .chart-container, table, .panchayat-tables, .panchayat-insights {{ 
        page-break-inside: avoid !important;
        break-inside: avoid !important;
      }}
@@ -890,14 +684,16 @@ Follow this specific design pattern for optimal A2 PDF conversion and modern rea
      .page-break {{ 
        page-break-before: always !important;
        break-before: always !important;
+       height: 0;
+       overflow: hidden;
      }}
      /* Prevent orphaned headings */
-     h2, h3 {{ 
+     h2, h3, h4 {{ 
        page-break-after: avoid !important;
        break-after: avoid !important; 
      }}
      /* Properly handle grid layouts */
-     .grid-2col, .grid-3col, .panchayat-tables {{
+     .grid-2col, .grid-3col, .grid-4col, .panchayat-tables {{
        break-inside: avoid !important;
      }}
      /* Prevent header page break that causes empty first page */
@@ -905,48 +701,51 @@ Follow this specific design pattern for optimal A2 PDF conversion and modern rea
        page-break-after: avoid !important;
        break-after: avoid !important;
      }}
+     /* Scale font sizes for A2 */
+     h1 {{ font-size: 32pt; }}
+     h2 {{ font-size: 28pt; }}
+     h3 {{ font-size: 22pt; }}
+     h4 {{ font-size: 18pt; }}
+     .kpi-value {{ font-size: 30pt; }} /* Adjust KPI font size */
+     .kpi-value span {{ font-size: 20pt; }}
+     .grade-badge-large {{ font-size: 36pt; width: 80px; height: 80px; border-radius: 16px; }}
+     .grade-badge {{ font-size: 16pt; width: 40px; height: 40px; border-radius: 10px; }}
+     table {{ font-size: 14pt; }} /* Ensure table text is readable */
+     th {{ font-size: 16pt; }} /* Table headers */
    }}
+   ```
+
+   - Add these utility classes for styling and layout:
    
+   ```css
    /* Remove shadows from all elements */
-   .container,
-   .card,
-   .kpi-card,
-   .block-card,
-   .component-card,
-   .block-analysis-card,
-   .chart-container,
-   .recommendation-card,
-   .swot-box,
-   .treemap-item {{
+   .container, .card, .kpi-card, .block-card, .component-card,
+   .block-analysis-card, .chart-container, .recommendation-card,
+   .swot-box, .treemap-item {{
      box-shadow: none;
    }}
-   
+
    /* Replace with subtle borders for visual separation */
-   .card, 
-   .kpi-card,
-   .component-card,
-   .block-analysis-card,
-   .chart-container,
-   .recommendation-card {{
+   .card, .kpi-card, .component-card, .block-analysis-card,
+   .chart-container, .recommendation-card, .block-card {{
      border: 1px solid #e0e0e0;
      border-radius: 12px;
+     padding: 20px; /* Reduced padding for space efficiency */
+     margin-bottom: 25px; /* Reduced spacing between cards */
    }}
-   
-   /* Ensure no filter shadows on grid elements */
-   .grid-2col > div, 
-   .grid-3col > div {{
-     filter: none;
+
+   /* Grid layouts */
+   .grid-2col, .grid-3col, .grid-4col {{
+     display: grid;
+     gap: 25px; /* Reduced gap for space efficiency */
    }}
-   
-   /* Increase spacing between grid elements for better visual separation */
-   .grid-2col,
-   .grid-3col {{
-     gap: 40px;
-   }}
-   
+   .grid-2col {{ grid-template-columns: repeat(2, 1fr); }}
+   .grid-3col {{ grid-template-columns: repeat(3, 1fr); }}
+   .grid-4col {{ grid-template-columns: repeat(4, 1fr); }}
+
    /* Modern Grade Badge Styling */
    .grade-badge-large {{
-     display: flex;
+     display: inline-flex; 
      align-items: center;
      justify-content: center;
      font-size: 36pt;
@@ -954,9 +753,9 @@ Follow this specific design pattern for optimal A2 PDF conversion and modern rea
      width: 80px;
      height: 80px;
      border-radius: 16px;
-     margin: 0 auto;
      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
      color: white;
+     vertical-align: middle;
    }}
 
    .grade-badge {{
@@ -970,423 +769,596 @@ Follow this specific design pattern for optimal A2 PDF conversion and modern rea
      font-size: 16pt;
      color: white;
      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+     vertical-align: middle;
    }}
 
    /* Grade Gradient Styles */
-   .grade-A-gradient {{
-     background: linear-gradient(135deg, #34c759 0%, #28a745 100%);
-     color: white;
+   .grade-A-gradient {{ background: linear-gradient(135deg, #34c759 0%, #28a745 100%); color: white; }}
+   .grade-B-gradient {{ background: linear-gradient(135deg, #30b0c7 0%, #17a2b8 100%); color: white; }}
+   .grade-C-gradient {{ background: linear-gradient(135deg, #ffcc00 0%, #ffc107 100%); color: #333; }}
+   .grade-D-gradient {{ background: linear-gradient(135deg, #ff3b30 0%, #dc3545 100%); color: white; }}
+
+   /* Modern Performance Capsules */
+   .performance-capsule {{
+     display: inline-flex;
+     align-items: center;
+     padding: 6px 10px;
+     border-radius: 30px;
+     font-weight: 600;
+     font-size: 14pt;
+     box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+     min-width: 120px;
+     justify-content: center;
+     white-space: nowrap;
    }}
 
-   .grade-B-gradient {{
-     background: linear-gradient(135deg, #30b0c7 0%, #17a2b8 100%);
-     color: white;
+   .performance-capsule i {{
+     margin-right: 5px;
+     font-size: 12pt;
    }}
 
-   .grade-C-gradient {{
-     background: linear-gradient(135deg, #ffcc00 0%, #ffc107 100%);
+   .capsule-high {{
+     background: linear-gradient(135deg, #0056a6, #2D8CC0);
+     color: white;
+     border: 1px solid rgba(255,255,255,0.2);
+   }}
+
+   .capsule-above {{
+     background: linear-gradient(135deg, #28a745, #5cb85c);
+     color: white;
+     border: 1px solid rgba(255,255,255,0.2);
+   }}
+
+   .capsule-average {{
+     background: linear-gradient(135deg, #ffc107, #ffdb58);
      color: #333;
+     border: 1px solid rgba(0,0,0,0.1);
    }}
 
-   .grade-D-gradient {{
-     background: linear-gradient(135deg, #ff3b30 0%, #dc3545 100%);
+   .capsule-below {{
+     background: linear-gradient(135deg, #fd7e14, #ff9800);
      color: white;
+     border: 1px solid rgba(255,255,255,0.2);
    }}
-   
-   - Add these utility classes for explicit page break control:
-   
+
+   .capsule-critical {{
+     background: linear-gradient(135deg, #dc3545, #ff6b6b);
+     color: white;
+     border: 1px solid rgba(255,255,255,0.2);
+   }}
+
+   /* Utility classes */
    .keep-together {{
      page-break-inside: avoid !important;
      break-inside: avoid !important;
    }}
-   
+
    .start-new-page {{
      page-break-before: always !important;
      break-before: always !important;
    }}
-   
+
    .no-break-after {{
      page-break-after: avoid !important;
      break-after: avoid !important;
    }}
    
-   - Use physical units (mm, cm) for critical dimensions to ensure print consistency
-   - Add proper page-break-before: always classes at each logical section break
-   - Ensure all content is sized proportionally for A2 paper (approximately 2x the size of A4)
-   - Set base font size to 14pt (not pixels) with headings scaled proportionally
-   - Use viewport meta tag to support proper scaling:
+   /* Text colors */
+   .text-success {{ color: #28a745; }}
+   .text-danger {{ color: #dc3545; }}
+   .text-warning {{ color: #ffc107; }}
+   .text-info {{ color: #17a2b8; }}
    
-   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, width=device-width">
+   /* Background colors */
+   .bg-primary {{ background-color: #0056a6; color: white; }}
+   .bg-secondary {{ background-color: #2D8CC0; color: white; }}
+   .bg-accent {{ background-color: #FF9933; color: white; }}
+   .bg-light {{ background-color: #F5F7FA; }}
+   
+   /* SWOT styling */
+   .swot-container {{
+     display: grid;
+     grid-template-columns: repeat(2, 1fr);
+     gap: 20px;
+     margin: 25px 0;
+   }}
+   
+   .swot-box {{
+     border: 1px solid #e0e0e0;
+     border-radius: 12px;
+     padding: 15px;
+   }}
+   
+   .swot-box h4 {{
+     margin-top: 0;
+     margin-bottom: 10px;
+     padding-bottom: 8px;
+     border-bottom: 1px solid #eee;
+     font-size: 16pt;
+   }}
+   
+   .swot-box ul {{
+     margin: 0;
+     padding-left: 20px;
+   }}
+   
+   .swot-box li {{
+     margin-bottom: 8px;
+     line-height: 1.4;
+   }}
+   
+   .swot-strengths {{ border-left: 8px solid #28a745; }}
+   .swot-weaknesses {{ border-left: 8px solid #dc3545; }}
+   .swot-opportunities {{ border-left: 8px solid #17a2b8; }}
+   .swot-threats {{ border-left: 8px solid #ffc107; }}
+   
+   /* KPI cards */
+   .kpi-cards {{
+     display: grid;
+     grid-template-columns: repeat(4, 1fr);
+     gap: 18px;
+     margin-bottom: 25px;
+   }}
+   
+   .kpi-card {{
+     background-color: white;
+     border-radius: 12px;
+     padding: 18px;
+     text-align: center;
+     border: 1px solid #e0e0e0;
+     transition: transform 0.2s;
+   }}
+   
+   .kpi-card h3 {{
+     color: #0056a6;
+     margin-top: 0;
+     margin-bottom: 8px;
+     font-size: 18pt;
+   }}
+   
+   .kpi-value {{
+     font-size: 36pt;
+     font-weight: bold;
+     margin: 12px 0;
+   }}
+   
+   .kpi-label {{
+     font-size: 14pt;
+     color: #555555;
+   }}
+   
+   /* Modern District Spectrum styling */
+   .district-spectrum-container {{
+     margin: 25px 0;
+     padding: 20px;
+     border-radius: 12px;
+     background-color: #fafafa;
+     border: 1px solid #e0e0e0;
+   }}
 
-10. Specific section layouts optimized for A2:
-    - Executive Summary: Use CSS Grid for the entire layout with strategic page breaks
-      * Ensure it fits approximately 2 complete A2 pages
-      * Each SWOT box should have min-height: 200px
-      * The component table should have width: 100% and appropriate spacing
+   .district-spectrum-title {{
+     margin-top: 0;
+     margin-bottom: 15px;
+     font-size: 20pt;
+     color: #0056a6;
+   }}
+   
+   .district-spectrum-scale {{
+     position: relative;
+     height: 12px;
+     margin: 30px 0;
+     border-radius: 6px;
+     background: linear-gradient(to right, 
+       #dc3545 0%, 
+       #ffc107 40%, 
+       #28a745 80%);
+     box-shadow: inset 0 1px 3px rgba(0,0,0,0.15);
+     overflow: visible;
+   }}
+   
+   .district-marker {{
+     position: absolute;
+     top: -14px;
+     width: 40px;
+     height: 40px;
+     transform: translateX(-50%);
+     z-index: 2;
+   }}
+   
+   .marker-icon {{
+     position: absolute;
+     width: 24px;
+     height: 24px;
+     background-color: #0056a6;
+     border: 3px solid white;
+     border-radius: 50%;
+     box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+     top: 0;
+     left: 8px;
+   }}
+   
+   .marker-line {{
+     position: absolute;
+     width: 2px;
+     height: 16px;
+     background-color: #0056a6;
+     top: 24px;
+     left: 19px;
+   }}
+   
+   .district-marker-label {{
+     position: absolute;
+     top: -45px;
+     left: 50%;
+     transform: translateX(-50%);
+     background-color: #0056a6;
+     color: white;
+     padding: 6px 12px;
+     border-radius: 6px;
+     white-space: nowrap;
+     font-weight: bold;
+     font-size: 13pt;
+     box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+   }}
+   
+   .district-marker-label::after {{
+     content: "";
+     position: absolute;
+     bottom: -6px;
+     left: 50%;
+     transform: translateX(-50%);
+     width: 0;
+     height: 0;
+     border-left: 6px solid transparent;
+     border-right: 6px solid transparent;
+     border-top: 6px solid #0056a6;
+   }}
+   
+   .district-spectrum-labels {{
+     display: flex;
+     justify-content: space-between;
+     margin: 15px 5px 5px;
+   }}
+   
+   .spectrum-label {{
+     text-align: center;
+     font-weight: bold;
+     padding: 5px 12px;
+     border-radius: 20px;
+     font-size: 12pt;
+     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+   }}
+   
+   .spectrum-label.lowest {{
+     background-color: #ffebee;
+     color: #dc3545;
+     border: 1px solid rgba(220,53,69,0.3);
+   }}
+   
+   .spectrum-label.state-avg {{
+     background-color: #fff8e1;
+     color: #ff9800;
+     border: 1px solid rgba(255,152,0,0.3);
+   }}
+   
+   .spectrum-label.highest {{
+     background-color: #e8f5e9;
+     color: #28a745;
+     border: 1px solid rgba(40,167,69,0.3);
+   }}
+   
+   .district-spectrum-insight {{
+     text-align: center;
+     margin: 15px 0 5px;
+     font-size: 14pt;
+     line-height: 1.4;
+   }}
+   
+   /* Scale Markers */
+   .scale-markers {{
+     position: relative;
+     height: 7px;
+     margin-top: -25px;
+     display: flex;
+     justify-content: space-between;
+     padding: 0 1%;
+     width: 98%;
+   }}
+   
+   .scale-marker {{
+     width: 1px;
+     height: 7px;
+     background-color: rgba(0,0,0,0.3);
+   }}
+   
+   /* Table optimizations */
+   table {{
+     width: 100%;
+     border-collapse: collapse;
+     border-spacing: 0;
+     margin-bottom: 20px;
+   }}
+   
+   thead th {{
+     background-color: #0056a6;
+     color: white;
+     font-weight: bold;
+     text-align: left;
+     padding: 10px 12px;
+     border: 1px solid #0056a6;
+   }}
+   
+   tbody td {{
+     padding: 8px 12px;
+     border: 1px solid #e0e0e0;
+     vertical-align: middle;
+   }}
+   
+   tbody tr:nth-child(even) {{
+     background-color: #f9f9f9;
+   }}
+   
+   tbody tr:hover {{
+     background-color: #f0f7ff;
+   }}
+   
+   /* Compact padding for table cells */
+   .compact-table td, .compact-table th {{
+     padding: 6px 10px;
+   }}
+   
+   /* Recommendations styling */
+   .recommendations-container {{
+     display: grid;
+     grid-template-columns: repeat(3, 1fr);
+     gap: 20px;
+     margin: 25px 0;
+   }}
+   
+   .recommendation-card {{
+     border: 1px solid #e0e0e0;
+     border-radius: 12px;
+     padding: 18px;
+     background-color: white;
+   }}
+   
+   .recommendation-card h4 {{
+     margin-top: 0;
+     color: #0056a6;
+     padding-bottom: 8px;
+     border-bottom: 1px solid #e0e0e0;
+   }}
+   
+   .recommendation-list {{
+     padding-left: 20px;
+     margin: 10px 0;
+   }}
+   
+   .recommendation-list li {{
+     margin-bottom: 10px;
+     line-height: 1.4;
+   }}
+   
+   .priority-indicator {{
+     display: inline-block;
+     width: 10px;
+     height: 10px;
+     border-radius: 50%;
+     margin-right: 6px;
+   }}
+   
+   .priority-critical {{ background-color: #dc3545; }}
+   .priority-high {{ background-color: #fd7e14; }}
+   .priority-medium {{ background-color: #ffc107; }}
+   .priority-low {{ background-color: #28a745; }}
+   ```
+
+8. Typography and space optimization:
+   - Use a clean, professional sans-serif font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif
+   - Set base font size to 14pt for body text to ensure readability on A2 paper
+   - Scale headings proportionally: h1 (32pt), h2 (26pt), h3 (20pt), h4 (16pt)
+   - Reduce line height to 1.4 to save vertical space while maintaining readability
+   - Use color strategically to convey information without taking extra space
+   - Minimize padding and margins where possible without compromising readability
+   - Use subtle icons to convey information more efficiently than text where appropriate
+
+**Include these exact sections, adapted for brevity:**
+
+1. Executive Summary (Concise - Aim for ~1 page)
+   - Begin with the 4 KPI cards arranged in a row using grid-4col
+   - Create a modern, sleek "District Performance Spectrum" visualization
+   - Include the Component Contribution table with enhanced performance capsules
+   - Add a 2x2 grid SWOT analysis with concise bullet points
+
+2. Block-wise Performance
+   - Include Block Performance Comparison table with modern styling
+   - Show best and worst performing blocks with brief analysis
+   - Add Quick Win Opportunities section
+
+3. Panchayat Performance
+   - Create a space-efficient table showing top 10 and bottom 10 panchayats
+   - Include columns for: Panchayat Name, Block Name, Score, Grade, vs State Avg
+   - Add concise key observations
+
+4. Recommendations (Comprehensive)
+   - Structure as: Priority Areas, Replicating Success, Operational Improvements
+   - Provide specific, actionable recommendations linked to findings
+   - Include block-specific recommendations for low performers
+
+For the District Performance Spectrum visualization, create a modern, sleek UI element like this:
+
+```html
+<div class="district-spectrum-container keep-together">
+  <h3 class="district-spectrum-title">District Performance Spectrum</h3>
+  <p>Visualizing where {district} ranks among all districts in Madhya Pradesh:</p>
+  
+  <!-- Modern, thin spectrum scale (gradient bar) -->
+  <div class="district-spectrum-scale">
+    <!-- Position marker based on district rank -->
+    <div class="district-marker" style="left: calc({{district_position_percentage}}%)">
+      <div class="marker-icon"></div>
+      <div class="marker-line"></div>
+      <div class="district-marker-label-below">{{district}}: {{district_score}}</div>
+    </div>
     
-    - Component-wise Performance: 
-      * Use 3-column grid layout (grid-template-columns: repeat(3, 1fr))
-      * Arrange exactly 3 components per row
-      * Each component card should be min-height: 420px
-      * This creates 4 rows of 3 components across 2-3 pages
-    
-    - Block-wise Performance: 
-      * Table container should be min-height: 300px
-      * Place exactly 2 block analysis cards per row
-      * Each block card should be min-height: 550px
-      * With 5 blocks total, this section should span 3 pages
-    
-    - Panchayat Performance: 
-      * Each block's panchayat section should be kept together with class="keep-together"
-      * If a block's panchayat tables don't fit on the current page, force a page break before it
-    
-    - Recommendations: 
-      * All three recommendation cards should fit on a single page
-      * Each card should be min-height: 550px
-
-11. Typography improvements for A2 format:
-    - Use a clean, professional sans-serif font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif
-    - Set base font size to 14pt (not px) for body text to ensure readability on A2
-    - Scale headings proportionally: h1 (32pt), h2 (28pt), h3 (22pt), h4 (18pt)
-    - Use font-weight strategically (bold for headings and important data)
-    - Maintain consistent line-height (1.6) for readability
-    - Use color to highlight key metrics and insights
-    - Ensure all font sizing uses point units (pt) for print consistency
-
-12. A2-specific considerations:
-    - Leave adequate whitespace between sections (minimum 50px vertical margins)
-    - Avoid cramming too many elements into a single page - A2 allows for more generous spacing
-    - Scale all interactive elements like buttons and controls to be at least 50% larger than standard web sizes
-    - Use percentage-based widths for containers rather than fixed pixels to ensure proper scaling
-    - Set all components to flex-grow appropriately to fill the A2 dimensions
-    - Ensure all images and logos are high resolution (minimum 300dpi) for crisp printing on A2
-    - Scale header and footer elements proportionally to the A2 format
-    - To prevent container overflow and ensure proper page breaks, use these strict sizing rules:
-      * Header height: exactly 180px
-      * Section margins: exactly 50px top and bottom
-      * Content cards: fixed heights based on A2 dimensions
-      * Usable height per A2 page: ~550mm (excluding margins)
-      * Deduct fixed elements (header, titles) from available space
-      * Ensure content heights don't exceed remaining space
-
-Each section should be cleanly separated with appropriate header styling and spacing. The document should have a professional, government report look while still being visually engaging and modern.
-
-Include these exact sections:
-
-1. Executive Summary - This should give a snapshot of the District. follow this exact pattern
-- Begin with 4 different KPI cards arranged in a row:
-  * District Rank (showing rank out of total districts)
-  * Score (showing total points out of 103)
-  * Grade (showing grade with appropriate color)
-  * State Comparison - showing difference from state average
-
-<div class="kpi-cards grid-4col">
-  <!-- District Rank KPI Card -->
-  <div class="kpi-card">
-    <h3>District Rank</h3>
-    <div class="kpi-value">
-      {{{performance_summary['selectedDistrict']['rank']}}}
-      <span style="font-size: 20pt;">/{{{performance_summary['selectedDistrict']['totalDistricts']}}}</span>
-    </div>
-    <div class="kpi-label">
-      {{{{performance_summary['selectedDistrict']['rank'] <= performance_summary['selectedDistrict']['totalDistricts']/4 ? 
-        'Top 25% of districts' : 
-        performance_summary['selectedDistrict']['rank'] <= performance_summary['selectedDistrict']['totalDistricts']/2 ? 
-        'Top 50% of districts' : 
-        performance_summary['selectedDistrict']['rank'] <= performance_summary['selectedDistrict']['totalDistricts']*3/4 ? 
-        'Bottom 50% of districts' : 
-        'Bottom 25% of districts'}}}}
+    <!-- Scale markers -->
+    <div class="scale-markers">
+      <div class="scale-marker"></div>
+      <div class="scale-marker"></div>
+      <div class="scale-marker"></div>
+      <div class="scale-marker"></div>
+      <div class="scale-marker"></div>
+      <div class="scale-marker"></div>
+      <div class="scale-marker"></div>
+      <div class="scale-marker"></div>
+      <div class="scale-marker"></div>
     </div>
   </div>
   
-  <!-- Score KPI Card -->
-  <div class="kpi-card">
-    <h3>Total Score</h3>
-    <div class="kpi-value">
-      {{{performance_summary['selectedDistrict']['marks']}}}
-      <span style="font-size: 20pt;">/103</span>
-    </div>
-    <div class="kpi-label">
-      {{{{(performance_summary['selectedDistrict']['marks'] / 103 * 100).toFixed(1)}}}}% of maximum possible
-    </div>
+  <div class="district-spectrum-labels">
+    <div class="spectrum-label lowest">{{lowest_district_name}}: {{lowest_district_score}}</div>
+    <div class="spectrum-label state-avg">State Avg: {{state_average}}</div>
+    <div class="spectrum-label highest">{{highest_district_name}}: {{highest_district_score}}</div>
   </div>
   
-  <!-- Grade KPI Card  -->
-  <div class="kpi-card">
-    <h3>Grade</h3>
-    <div class="kpi-value">
-      <div class="grade-badge-large grade-{{{performance_summary['selectedDistrict']['grade']}}}-gradient">
-        {{{performance_summary['selectedDistrict']['grade']}}}
-      </div>
-    </div>
-    <div class="kpi-label">
-      {{{{performance_summary['selectedDistrict']['grade'] === 'A' ? 'Excellence' : 
-          performance_summary['selectedDistrict']['grade'] === 'B' ? 'Good performance' : 
-          performance_summary['selectedDistrict']['grade'] === 'C' ? 'Average performance' : 
-          'Requires improvement'}}}}
-    </div>
-  </div>
-  
-  <!-- State Comparison KPI Card -->
-  <div class="kpi-card">
-    <h3>State Comparison</h3>
-    <div class="kpi-value">
-      <span class="{{{{performance_summary['selectedDistrict']['comparedToStateAverage']['isAbove'] ? 'text-success' : 'text-danger'}}}}">
-        <span style="font-size: 36pt; margin-right: 5px;">{{{{performance_summary['selectedDistrict']['comparedToStateAverage']['isAbove'] ? '↑' : '↓'}}}}</span> {{{performance_summary['selectedDistrict']['comparedToStateAverage']['difference']}}}
-      </span>
-    </div>
-    <div class="kpi-label">
-      {{{{performance_summary['selectedDistrict']['comparedToStateAverage']['isAbove'] ? 'Above' : 'Below'}}}} state average: {{{performance_summary['metadata']['stateAverage']}}}
-    </div>
-  </div>
-
-- 2 Tables in one grid with top 5/bottom 5 districts with their rank, score and grade as columns.
-  Add a state average reference between these tables:
-  
-  <div class="grid-2col">
-  <!-- Top 5 Districts table -->
-  <div class="card">
-    <h3>Top 5 Districts</h3>
-    <table class="min-w-full bg-white border border-gray-200">
-      <thead class="bg-primary text-white">
-        <tr>
-          <th class="py-3 px-4 text-left">District</th>
-          <th class="py-3 px-4 text-left">Score</th>
-          <th class="py-3 px-4 text-center">Grade</th>
-        </tr>
-      </thead>
-      <tbody>
-        {{#each performance_summary.districts.top5}}
-        <tr class="{{#if @index % 2}}bg-white{{else}}bg-gray-50{{/if}}">
-          <td class="py-3 px-4 border-b border-gray-200">{{name}}</td>
-          <td class="py-3 px-4 border-b border-gray-200">{{marks}}</td>
-          <td class="py-3 px-4 border-b border-gray-200 text-center">
-            <div class="grade-badge grade-{{grade}}-gradient">{{grade}}</div>
-          </td>
-        </tr>
-        {{/each}}
-      </tbody>
-    </table>
-  </div>
-  
-  <!-- State average marker between tables -->
-  <div class="state-average-marker text-center my-2">
-    <span class="inline-block px-3 py-1 bg-yellow-400 rounded text-sm font-bold">
-      State Average: {{{performance_summary['metadata']['stateAverage']}}}
-    </span>
-  </div>
-  
-  <!-- Bottom 5 Districts table -->
-  <div class="card">
-    <h3>Bottom 5 Districts</h3>
-    <table class="min-w-full bg-white border border-gray-200">
-      <thead class="bg-primary text-white">
-        <tr>
-          <th class="py-3 px-4 text-left">District</th>
-          <th class="py-3 px-4 text-left">Score</th>
-          <th class="py-3 px-4 text-center">Grade</th>
-        </tr>
-      </thead>
-      <tbody>
-        {{#each performance_summary.districts.bottom5}}
-        <tr class="{{#if @index % 2}}bg-white{{else}}bg-gray-50{{/if}}">
-          <td class="py-3 px-4 border-b border-gray-200">{{name}}</td>
-          <td class="py-3 px-4 border-b border-gray-200">{{marks}}</td>
-          <td class="py-3 px-4 border-b border-gray-200 text-center">
-            <div class="grade-badge grade-{{grade}}-gradient">{{grade}}</div>
-          </td>
-        </tr>
-        {{/each}}
-      </tbody>
-    </table>
-  </div>
+  <p class="district-spectrum-insight">
+    {district} ranks <strong>{{district_rank}}</strong> out of <strong>{{total_districts}}</strong> districts, 
+    performing <strong class="{{above_or_below_class}}">{{difference_text}}</strong> the state average.
+  </p>
 </div>
 
-- A table showing components with score, percentage contribution, performance level, and state average comparison:
-  
-  ```html
-  <div class="card keep-together">
-    <h3>Component Contribution to Total Score</h3>
-    <div class="overflow-x-auto">
-      <table class="min-w-full bg-white border border-gray-200">
-        <thead class="bg-primary text-white">
-          <tr>
-            <th class="py-3 px-4 text-left">Component</th>
-            <th class="py-3 px-4 text-left">Score</th>
-            <th class="py-3 px-4 text-left">% of Total</th>
-            <th class="py-3 px-4 text-left">Performance</th>
-            <th class="py-3 px-4 text-left">vs State Avg</th>
-          </tr>
-        </thead>
-        <tbody>
-          <!-- For each component, add vs State Avg column -->
-          <tr>
-            <!-- Existing columns -->
-            <td class="py-3 px-4 border-b border-gray-200">
-              <span class="{{{{componentValue > stateAvgForComponent ? 'text-success' : 'text-danger'}}}}">
-                {{{{componentValue > stateAvgForComponent ? '+' : ''}}}}{{{{(componentValue - stateAvgForComponent)|round(2)}}}}
-              </span>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-  ```
+<style>
+/* Add this new style for below-positioned label */
+.district-marker-label-below {{
+  position: absolute;
+  top: 30px; /* Position below the marker instead of above */
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #0056a6;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 6px;
+  white-space: nowrap;
+  font-weight: bold;
+  font-size: 13pt;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}}
 
-- key strengths/weakness/opportunity/Threats comparison with state average context:
-  When analyzing SWOT, include explicit references to state average:
-  
-  ```html
-  <div class="swot-container grid-2col">
-    <div class="swot-box swot-strengths">
-      <h4>Strengths</h4>
-      <ul>
-        <li>Components performing significantly above state average (e.g., X component is Y points above)</li>
-        <!-- Other strengths -->
-      </ul>
-    </div>
-    
-    <div class="swot-box swot-weaknesses">
-      <h4>Weaknesses</h4>
-      <ul>
-        <li>Components performing significantly below state average (e.g., X component is Y points below)</li>
-        <!-- Other weaknesses -->
-      </ul>
-    </div>
-    
-    <div class="swot-box swot-opportunities">
-      <h4>Opportunities</h4>
-      <ul>
-        <li>Components just below state average that could be improved with focused effort</li>
-        <!-- Other opportunities -->
-      </ul>
-    </div>
-    
-    <div class="swot-box swot-threats">
-      <h4>Threats</h4>
-      <ul>
-        <li>Risk of falling below state average in components where the margin is narrow</li>
-        <!-- Other threats -->
-      </ul>
-    </div>
-  </div>
-  ```
-  important - Your response should contain data to validate your points.
+.district-marker-label-below::before {{
+  content: "";
+  position: absolute;
+  top: -6px; /* Arrow points upward */
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 6px solid #0056a6; /* Arrow points upward */
+}}
+</style>
+```
 
-- Best and Worst performing Block with state average comparison:
-  
-  ```html
-  <div class="grid-2col">
-    <div class="block-card best-block">
-      <h4>Best Performing Block</h4>
-      <div class="block-data">
-        <p class="block-name">[BLOCK_NAME]</p>
-        <p class="block-score">Score: [SCORE]</p>
-        <p class="block-grade">Grade: [GRADE]</p>
-        <p class="state-comparison">
-          <span class="{{{{bestBlockScore > stateAverage ? 'text-success' : 'text-danger'}}}}">
-            {{{{Math.abs(bestBlockScore - stateAverage)|round(2)}}}} points 
-            {{{{bestBlockScore > stateAverage ? 'above' : 'below'}}}} state average
-          </span>
-        </p>
-      </div>
-    </div>
-    
-    <div class="block-card worst-block">
-      <h4>Worst Performing Block</h4>
-      <div class="block-data">
-        <p class="block-name">[BLOCK_NAME]</p>
-        <p class="block-score">Score: [SCORE]</p>
-        <p class="block-grade">Grade: [GRADE]</p>
-        <p class="state-comparison">
-          <span class="{{{{worstBlockScore > stateAverage ? 'text-success' : 'text-danger'}}}}">
-            {{{{Math.abs(worstBlockScore - stateAverage)|round(2)}}}} points 
-            {{{{worstBlockScore > stateAverage ? 'above' : 'below'}}}} state average
-          </span>
-        </p>
-      </div>
-    </div>
-  </div>
-  ```
+For the performance capsules in tables, use this modern styling:
 
-- Low hanging fruits where little effort can lead to better ranking, using state average as reference:
-  
-  ```html
-  <div class="card low-hanging-fruits">
-    <h3>Quick Win Opportunities</h3>
-    <p>Components just below state average where targeted efforts could yield significant improvements:</p>
+```html
+<span class="performance-capsule capsule-high"><i>★</i> High</span>
+<span class="performance-capsule capsule-above"><i>↗</i> Above Avg</span>
+<span class="performance-capsule capsule-average"><i>→</i> Average</span>
+<span class="performance-capsule capsule-below"><i>↘</i> Below Avg</span>
+<span class="performance-capsule capsule-critical"><i>⚠</i> Critical</span>
+```
+
+For the SWOT analysis, ensure you include all four quadrants in a space-efficient 2x2 grid:
+
+```html
+<div class="swot-container keep-together">
+  <div class="swot-box swot-strengths">
+    <h4>Strengths</h4>
     <ul>
-      <li>[COMPONENT_NAME]: Currently [COMPONENT_SCORE] ([DIFFERENCE] points below state average) - [IMPROVEMENT_SUGGESTION]</li>
-      <!-- Add specific components that are just slightly below state average -->
+      <!-- 3-4 concise bullet points -->
+      <li>Labor Engagement score of {{labor_score}} ({{labor_percent}}% above state average)</li>
+      <!-- More strengths... -->
     </ul>
-    <p>Focus on these areas could efficiently improve overall district ranking.</p>
   </div>
-  ```
-
-- it should cover around 2-3 pdf pages.
-
-
-
-2. Component-wise Performance - Analysis of all 13 parameters with scores, progress bars, and insights Your response should contain data to validate your points.
-Include district ranking/score in that component, top districts, improvement potential and suggestions, blocks in the district who are performig good and bad. 
-place three components in one row to optimise space.
-3. Block-wise Performance - Start with a comparison table showing blocks with visual performance bars and state average marker. Then below it Show Comparison of all blocks with component scores and identified strengths/weaknesses. All these blocks are from same district, analyse there performance for SWOT.
-Important: Do not leave out any Block from analysis.
-4. Panchayat Performance - Top/bottom 5 performers for each block with analysis
-5. Recommendations - Actionable suggestions in three categories: Priority Areas, Replicating Success, and Operational Improvements
-
-For the footer, use only this exact content:
-<div class="copyright">
-    <p>&copy; Prepared By: Anshuman Raj (CEO ZP SIDHI)</p>
-    <p>Data as of {date} | Report Generated on {datetime.now().strftime('%B %d, %Y at %H:%M:%S')}</p>
+  
+  <div class="swot-box swot-weaknesses">
+    <h4>Weaknesses</h4>
+    <ul>
+      <!-- 3-4 concise bullet points -->
+      <li>NMMS Usage at only {{nmms_percent}}% ({{nmms_gap}}% below target)</li>
+      <!-- More weaknesses... -->
+    </ul>
+  </div>
+  
+  <div class="swot-box swot-opportunities">
+    <h4>Opportunities</h4>
+    <ul>
+      <!-- 3-4 concise bullet points -->
+      <li>Potential to improve women mate engagement from {{current_women_mate}}% to {{target_women_mate}}%</li>
+      <!-- More opportunities... -->
+    </ul>
+  </div>
+  
+  <div class="swot-box swot-threats">
+    <h4>Threats</h4>
+    <ul>
+      <!-- 3-4 concise bullet points -->
+      <li>Risk of declining person-days if current trend continues</li>
+      <!-- More threats... -->
+    </ul>
+  </div>
 </div>
+```
 
-VERY IMPORTANT FOR PAGE BREAKS: To ensure proper PDF rendering with clean page breaks, follow these precise instructions:
+For the component performance table with enhanced capsules:
 
-1. Place the page break divs BETWEEN sections, not at the beginning of sections:
-   <!-- End of Executive Summary -->
-   <div class="page-break"></div>
-   <!-- Start of Component-wise Performance -->
+```html
+<div class="card keep-together">
+  <h3>Component Performance</h3>
+  <table class="compact-table">
+    <thead>
+      <tr>
+        <th>Component</th>
+        <th>Score</th>
+        <th>Top District</th>
+        <th>Ranking</th>
+        <th>Performance</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Labor Engagement</td>
+        <td>7.8 / 10</td>
+        <td>3 / 52</td>
+        <td>DISTRICT_NAME (9.5)</td>
+        <td><span class="performance-capsule capsule-high"><i>★</i> High</span></td>
+      </tr>
+      <!-- More rows... -->
+    </tbody>
+  </table>
+</div>
+```
+important: Top District is the topmost district in that group makesure to follow this structure for table
+For the footer, use only this exact content:
+```html
+<div class="copyright" style="text-align: center; margin-top: 30px; font-size: 12pt; color: #555;">
+    <p>&copy; Prepared By: Anshuman Raj (CEO ZP SIDHI)</p>
+    <p>Data as of {date} | Report Generated on {current_time}</p>
+</div>
+```
 
-2. For the block analysis section, divide blocks into logical pairs with page breaks between them:
-   <!-- First two blocks -->
-   <div class="keep-together grid-2col">
-     <!-- Block analysis for blocks 1-2 -->
-   </div>
-   <div class="page-break"></div>
-   <!-- Next two blocks -->
-   <div class="keep-together grid-2col">
-     <!-- Block analysis for blocks 3-4 -->
-   </div>
-   <div class="page-break"></div>
-   <!-- Final block (if odd number) -->
-   <div class="keep-together">
-     <!-- Block analysis for block 5 -->
-   </div>
+CRITICAL REQUIREMENTS:
+1. The entire report MUST FIT WITHIN 2-3 PAGES when printed on A2 paper. This is non-negotiable.
+2. Use minimal page breaks - only when absolutely necessary between major sections.
+3. Create a modern, sleek "District Performance Spectrum" visualization with a thin gradient bar.
+4. Use enhanced performance capsules with icons in tables.
+5. Optimize layout to minimize empty spaces throughout the report.
+6. Include all four SWOT quadrants in a space-efficient design.
+7. Focus on the most important insights and actionable recommendations.
+8. Include top 10 and bottom 10 panchayats across the entire district with their respective block names.
 
-3. For panchayat sections, keep each block's panchayat content together and use page breaks between blocks:
-   <div class="keep-together">
-     <h3 class="panchayat-block-title">BLOCK 1</h3>
-     <!-- Block 1 panchayat content -->
-   </div>
-   <div class="page-break"></div>
-   <div class="keep-together">
-     <h3 class="panchayat-block-title">BLOCK 2</h3>
-     <!-- Block 2 panchayat content -->
-   </div>
-
-4. For component cards, ensure they're arranged in rows of exactly 3 with consistent heights:
-   <div class="keep-together grid-3col">
-     <!-- First row of 3 component cards -->
-   </div>
-   <div class="page-break"></div>
-   <div class="keep-together grid-3col">
-     <!-- Second row of 3 component cards -->
-   </div>
-
-Important: Create complete, valid HTML with all CSS inline to ensure consistent rendering across systems. The document will be converted to PDF using Playwright, so ensure all styling is PDF-compatible without any JavaScript.
-Your response should be exhaustive and contain ample data to validate your points.
+Important: Create complete, valid HTML with all CSS inline to ensure consistent rendering across systems. The document will be converted to PDF using Playwright, so ensure all styling is PDF-compatible without any JavaScript. Focus on summarizing and hitting the key points to fit the 2-3 page A2 target. Use the provided data to validate points concisely.
 """
     
     # Save the prompt to a text file for debugging
@@ -1467,8 +1439,6 @@ Your response should be exhaustive and contain ample data to validate your point
     except Exception as e:
         logger.error(f"Error generating HTML report: {str(e)}")
         raise
-
-
 
 def setup_playwright_linux():
     """
