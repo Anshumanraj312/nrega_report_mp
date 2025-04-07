@@ -15,6 +15,7 @@
 !work_management.py
 !zero_muster.py
 !timely_payment.py
+!generate_2_page_report.py
 !.env.example
 !.gitignore
 !README.md
